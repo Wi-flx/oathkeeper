@@ -96,12 +96,9 @@ func (a *AuthorizerRemoteJSON) Authorize(r *http.Request, session *authn.Authent
 
 	var body bytes.Buffer
 	if bodyMap, ok := payload.(map[string]interface{}); ok {
-		var originalRequestCopy bytes.Buffer
-		if r.Body != nil {
-			if _, err := io.Copy(&originalRequestCopy, r.Body); err != nil {
-				return errors.Wrap(err, "failed to clone request body")
-			}
-		}
+		buf, _ := io.ReadAll(r.Body)
+		originalRequestCopy := bytes.NewBuffer(buf)
+		r.Body = io.NopCloser(bytes.NewBuffer(buf))
 
 		var originalRequest interface{}
 		if originalRequestCopy.Len() > 0 {
