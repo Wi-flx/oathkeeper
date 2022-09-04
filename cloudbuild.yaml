@@ -1,9 +1,11 @@
 steps:
   - name: 'golang'
-    args: [ 'go', 'build', '--ldflags', '-w -linkmode external -extldflags "-static"', '-o', 'oathkeeper', '.' ]
+    args: [ 'go', 'build', '-o', 'oathkeeper', '.' ]
     env:
+      - CGO_ENABLED=0
       - GOOS=linux
       - GO111MODULE=on
+      - GOARCH=amd64
       - GOPROXY=https://proxy.golang.org
 
   - name: gcr.io/cloud-builders/docker
