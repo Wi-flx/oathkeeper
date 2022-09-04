@@ -129,7 +129,7 @@ func TestAuthorizerRemoteJSONAuthorize(t *testing.T) {
 				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					body, err := ioutil.ReadAll(r.Body)
 					require.NoError(t, err)
-					assert.Equal(t, string(body), `{"subject":"alice","extra":"bar","match":"baz"}`)
+					assert.JSONEq(t, string(body), `{"subject":"alice","extra":"bar","match":"baz"}`)
 					w.WriteHeader(http.StatusOK)
 				}))
 			},
