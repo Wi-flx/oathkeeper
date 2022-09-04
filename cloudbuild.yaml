@@ -1,6 +1,6 @@
 steps:
   - name: 'golang'
-    args: [ 'make', 'docker']
+    args: [ 'make', 'build']
 
   - name: gcr.io/cloud-builders/docker
     args: ['build', '-t', 'gcr.io/$PROJECT_ID/oathkeeper:latest', '-f', './Dockerfile', '.']
