@@ -5,7 +5,9 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
 	"text/template"
 	"time"
 
@@ -77,24 +79,82 @@ func (a *AuthorizerRemoteJSON) Authorize(r *http.Request, session *authn.Authent
 		}
 	}
 
-	var body bytes.Buffer
-	if err := t.Execute(&body, session); err != nil {
+	var sessionBody bytes.Buffer
+	if err := t.Execute(&sessionBody, session); err != nil {
 		return errors.WithStack(err)
 	}
 
 	var j json.RawMessage
-	if err := json.Unmarshal(body.Bytes(), &j); err != nil {
+	if err := json.Unmarshal(sessionBody.Bytes(), &j); err != nil {
 		return errors.Wrap(err, "payload is not a JSON text")
 	}
 
-	req, err := http.NewRequest("POST", c.Remote, &body)
+	var payload interface{}
+	if err := json.Unmarshal(sessionBody.Bytes(), &payload); err != nil {
+		return errors.Wrap(err, "failed to convert session body to map")
+	}
+
+	var body bytes.Buffer
+	if bodyMap, ok := payload.(map[string]interface{}); ok {
+		var originalRequestCopy bytes.Buffer
+		if r.Body != nil {
+			if _, err := io.Copy(&originalRequestCopy, r.Body); err != nil {
+				return errors.Wrap(err, "failed to clone request body")
+			}
+		}
+
+		var originalRequest interface{}
+		if originalRequestCopy.Len() > 0 {
+			if err := json.Unmarshal(originalRequestCopy.Bytes(), &originalRequest); err != nil {
+				return errors.Wrap(err, "failed to unmarshal original request")
+			}
+
+			if originalRequestMap, ok := originalRequest.(map[string]interface{}); ok {
+				for k, v := range originalRequestMap {
+					bodyMap[k] = v
+				}
+			}
+		}
+
+		if err := json.NewEncoder(&body).Encode(bodyMap); err != nil {
+			return errors.Wrap(err, "failed to build request body")
+		}
+	} else {
+		if err := json.NewEncoder(&body).Encode(payload); err != nil {
+			return errors.Wrap(err, "failed to build request body")
+		}
+	}
+
+	remote, _ := url.Parse(c.Remote)
+	reqURL := r.URL
+	if reqURL != nil {
+		originalRequestQuery := reqURL.Query()
+		for k, v := range originalRequestQuery {
+			if len(v) > 0 {
+				remote.Query().Set(k, v[0])
+			}
+		}
+	}
+
+	var bodyCompact bytes.Buffer
+	if err := json.Compact(&bodyCompact, body.Bytes()); err != nil {
+		return errors.Wrap(err, "failed to compact request body")
+	}
+
+	req, err := http.NewRequest("POST", remote.String(), &bodyCompact)
 	if err != nil {
 		return errors.WithStack(err)
 	}
+
 	req.Header.Add("Content-Type", "application/json")
 	authz := r.Header.Get("Authorization")
 	if authz != "" {
 		req.Header.Add("Authorization", authz)
+	}
+
+	providerId := r.Header.Get("X-Provider-ID")
+	if providerId != "" {
+		req.Header.Add("X-Provider-ID", providerId)
 	}
 
 	res, err := a.client.Do(req.WithContext(r.Context()))
