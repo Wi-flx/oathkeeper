@@ -128,12 +128,13 @@ func (a *AuthorizerRemoteJSON) Authorize(r *http.Request, session *authn.Authent
 	remote, _ := url.Parse(c.Remote)
 	reqURL := r.URL
 	if reqURL != nil {
-		originalRequestQuery := reqURL.Query()
-		for k, v := range originalRequestQuery {
+		values := remote.Query()
+		for k, v := range reqURL.Query() {
 			if len(v) > 0 {
-				remote.Query().Set(k, v[0])
+				values.Set(k, v[0])
 			}
 		}
+		remote.RawQuery = values.Encode()
 	}
 
 	var bodyCompact bytes.Buffer
