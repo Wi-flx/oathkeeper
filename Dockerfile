@@ -13,4 +13,4 @@ COPY oathkeeper /usr/bin/oathkeeper
 USER 1000
 
 ENTRYPOINT ["oathkeeper"]
-CMD ["serve"]
+CMD ["serve", "proxy", "-c", "/oathkeeper-config/.oathkeeper.yaml"]
