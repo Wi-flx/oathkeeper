@@ -1,4 +1,11 @@
 steps:
+  - name: 'golang'
+    args: [ 'go', 'build', '--ldflags', '-w -linkmode external -extldflags "-static"', '-o', 'oathkeeper', '.' ]
+    env:
+      - GOOS=linux
+      - GO111MODULE=on
+      - GOPROXY=https://proxy.golang.org
+
   - name: gcr.io/cloud-builders/docker
     args: ['build', '-t', 'gcr.io/$PROJECT_ID/oathkeeper:latest', '-f', './Dockerfile', '.']
 
